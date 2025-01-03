@@ -9,10 +9,46 @@ trigger:
 pool: AzUbuntuVM
 
 steps:
-- script: echo Hello, world!
-  displayName: 'Run a one-line script'
-
-- script: |
-    echo Add other tasks to build, test, and deploy your project.
-    echo See https://aka.ms/yaml
-  displayName: 'Run a multi-line script'
+- task: TerraformTaskV4@4
+  displayName: TF init
+  inputs:
+    provider: 'azurerm'
+    command: 'init'
+    backendServiceArm: 'Free Trial(8a4dab15-fbf0-4518-9fe9-446c94b5283c)'
+    backendAzureRmResourceGroupName: 'devops-agent-rg'
+    backendAzureRmStorageAccountName: 'rdterraformtestaccount'
+    backendAzureRmContainerName: 'prod-tfstat'
+    backendAzureRmKey: 'prod.terraform.tfstate'
+- task: TerraformTaskV4@4
+  displayName: TF Validate
+  inputs:
+    provider: 'azurerm'
+    command: 'validate'
+- task: TerraformTaskV4@4
+  displayName: TF format
+  inputs:
+    provider: 'azurerm'
+    command: 'custom'
+    outputTo: 'console'
+    customCommand: 'fmt'
+    environmentServiceNameAzureRM: 'Free Trial(8a4dab15-fbf0-4518-9fe9-446c94b5283c)'
+- task: TerraformTaskV4@4
+  displayName: TF Plan
+  inputs:
+    provider: 'azurerm'
+    command: 'plan'
+    environmentServiceNameAzureRM: 'Free Trial(8a4dab15-fbf0-4518-9fe9-446c94b5283c)'
+- task: ArchiveFiles@2
+  displayName: Zip File
+  inputs:
+    rootFolderOrFile: '$(Build.BinariesDirectory)'
+    includeRootFolder: true
+    archiveType: 'zip'
+    archiveFile: '$(Build.ArtifactStagingDirectory)/$(Build.BuildId).zip'
+    replaceExistingArchive: true
+- task: PublishBuildArtifacts@1
+  displayName: TF Publish
+  inputs:
+    PathtoPublish: '$(Build.ArtifactStagingDirectory)'
+    ArtifactName: '$(Build.BuildId)-build'
+    publishLocation: 'Container'
